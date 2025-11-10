@@ -46,32 +46,53 @@ export class SupabaseService {
     const { data } = await this.supabase.auth.getSession();
     return data.session;
   }
-
+  
+    async getMessages() {
+    const { data, error } = await this.supabase
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data;
+  }
+  
+/*
   async getMessages() {
-  const { data, error } = await this.supabase
-    .from('messages')
-    .select('*')
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return data;
-}
+    const { data, error } = await this.supabase
+      .from('messages_with_author')  // <--- Cambiado a la vista con autor
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data;
+  }
+*/
+/*
+  async addMessage(content: string) {
+    const { error } = await this.supabase
+      .from('messages')
+      .insert({ content });
+    if (error) throw error;
+  }
+*/
 
 async addMessage(content: string) {
+  const session = await this.getCurrentSession();
+  const userName = session?.user?.email ?? 'Desconocido';  // o saca el nombre de Usuario desde otro lado
   const { error } = await this.supabase
     .from('messages')
-    .insert({ content });
+    .insert({ content, autor: userName });
   if (error) throw error;
 }
 
-listenToMessages(callback: (payload: any) => void) {
-  return this.supabase
-    .channel('public:messages')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'messages' },
-      payload => callback(payload.new)
-    )
-    .subscribe();
-}
-  
+  listenToMessages(callback: (payload: any) => void) {
+    return this.supabase
+      .channel('public:messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        payload => callback(payload.new)
+      )
+      .subscribe();
+  }
+
 }
